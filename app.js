@@ -1,54 +1,101 @@
-
 var express = require('express');
+var expressLayouts = require('express-ejs-layouts')
+var bodyParser = require('body-parser')
 var app = express();
+var TodoList = require('./models').TodoList
+var Todo = require('./models').Todo
 
-app.get('/piglatin/:text', function (request, response){
-  var sentence = request.params["text"];
-  sentence = sentence.split("+")
+app.use(express.static('public'))
+app.use(bodyParser.urlencoded({ extended: false }))
+app.set('view engine', 'ejs')
+app.use(expressLayouts)
 
-  for (var i = 0; i < sentence.length; i++){
-    let vowelWord = new RegExp('^[aeiou]', 'i');
-    let consonantWord = new RegExp ('^[b-df-hj-np-tv-z]', 'i');
-    let quWord = new RegExp('q$' && '^u', 'i');
-
-  if(vowelWord.test(sentence[i])) {
-    sentence[i] = sentence[i] + "way";
-  }
-  else if(consonantWord.test(sentence[i])) {
-    while(consonantWord.test(sentence[i])){
-      sentence[i] = sentence[i].substring(1) + sentence[i].substring(0, 1);
-    }
-    if(quWord.test(sentence[i])){
-      sentence[i] = sentence[i].substring(1) + sentence[i].substring(0,1);
-    }
-    sentence[i] = sentence[i] + "ay";
-  }
-}
-  response.send('Pig Latin: '+ sentence.join(" "));
-});
-
-app.get('/add', function (request, response){
-  var number1 = parseInt(request.query.a);
-  var number2 = parseInt(request.query.b);
-
-  var number3 = number1 + number2
-
-  response.send('your answer is: '+ number3);
-});
-
-app.get('/hello/reverse/:text', function (request, response){
-  var text = request.params["text"];
-
-  text2 = text.split("").reverse().join("")
-
-  response.send("Hello " + text2 + ".  Welcome!");
-});
-
+// our homepage, listing all todolists
 app.get('/', function (request, response) {
-  response.send('Hello World!');
-
+  TodoList.findAll().then(function(todoLists){
+    response.render('index', {todoLists: todoLists})
+  }).catch(function(error){
+    response.send("Error, couldn't fetch TodoLists")
+  })
 });
 
-app.listen(process.argv[2], function() {
-    console.log('Example app ' + process.argv[2] + ' listening!');
+//listing our todos for each todolist
+app.get('/todo-list/:id', function(request, response){
+    console.log(request.params);
+  TodoList.findById(request.params.id,
+    {include: [{
+      model: Todo,
+      as: 'Todos'
+    }]
+  }).then(function(todoList){
+    // "as" portion of the include above is looking for the table name - which is uppercase
+    response.render('todo-list', {todoList: todoList, todos: todoList.Todos})
+  }).catch(function(error){
+      console.log(error);
+    response.send("Error, couldn't fetch TodoList")
+  })
+})
+
+//creating a new todolist
+app.post('/todo-list/new', function(request, response){
+  TodoList.create({
+    name: request.body.name
+  }).then(function(todoList){
+    response.redirect("/")
+  }).catch(function(error){
+    response.send("Error, couldn't create Todo List")
+  })
+})
+
+//delete a todolist item
+app.post('/todo-list/:id/delete', function(request, response){
+  TodoList.findById(request.params.id).then(function(todoList){
+    return todoList.destroy()
+  }).then(function(todo){
+    response.redirect("/")
+  }).catch(function(error){
+    response.send("Error, couldn't delete to-do list")
+  })
+})
+
+
+// completing a todo item
+app.post('/todo-list/:todoListId/todo/:id/complete', function(request, response){
+  Todo.findById(request.params.id).then(function(todo){
+    todo.isComplete = true
+    return todo.save()
+  }).then(function(todo){
+    response.redirect("/todo-list/" + request.params.todoListId)
+  }).catch(function(error){
+    response.send("Error, couldn't fetch Todo")
+  })
+})
+
+//deleting a todo item
+app.post('/todo-list/:todoListId/todo/:id/delete', function(request, response){
+  Todo.findById(request.params.id).then(function(todo){
+    return todo.destroy()
+  }).then(function(todo){
+    response.redirect("/todo-list/" + request.params.todoListId)
+  }).catch(function(error){
+    response.send("Error, couldn't fetch Todo")
+  })
+})
+
+// creating a new todo item
+app.post('/todo-list/:todoListId/todo/new', function(request, response){
+  TodoList.findById(request.params.todoListId).then(function(todoList){
+    return todoList.createTodo({
+      name: request.body.name,
+      isComplete: false
+    })
+  }).then(function(todo){
+    response.redirect("/todo-list/" + request.params.todoListId)
+  }).catch(function(error){
+    response.send("Error, couldn't create Todo")
+  })
+})
+
+app.listen(3000, function () {
+ console.log('Example app listening on port 3000!');
 });

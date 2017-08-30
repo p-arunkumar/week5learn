@@ -1,38 +1,36 @@
-var express = require('express');
-var app = express();
-app.use(express.static('public'));  //tell Express that well keep files in the /public directory
-app.set('view engine', 'ejs');
+'use strict';
 
+var fs        = require('fs');
+var path      = require('path');
+var Sequelize = require('sequelize');
+var basename  = path.basename(module.filename);
+var env       = process.env.NODE_ENV || 'development';
+var config    = require(__dirname + '/../config/config.json')[env];
+var db        = {};
 
-var questions = {
-  'coronado-bridge':{
-    question: "Who was the first person to ever drive over the Coronado bridge?",
-    answer: "Ronald Reagan"
-  },
-  'hotel-del':{
-    question: "What is the largest wooden structure in the United States?  (Hint, its located in San Diego)",
-    answer: "Hotel Del Coronado"
-  },
-  'san-diego-county-fair':{
-    question: "What was the original name of the San Diego County Fair?",
-    answer: "Del Mar Fair"
-  },
-  'mission-bay':{
-    question: "How many visitors come to Mission Bay Park every year?",
-    answer: "More than 5 million"
-  },
-  'la-jolla-playhouse':{
-    question: "What famous actor founded the La Jolla Playhouse?",
-    answer: "Gregory Peck"
+if (config.use_env_variable) {
+  var sequelize = new Sequelize(process.env[config.use_env_variable]);
+} else {
+  var sequelize = new Sequelize(config.database, config.username, config.password, config);
+}
+
+fs
+  .readdirSync(__dirname)
+  .filter(function(file) {
+    return (file.indexOf('.') !== 0) && (file !== basename) && (file.slice(-3) === '.js');
+  })
+  .forEach(function(file) {
+    var model = sequelize['import'](path.join(__dirname, file));
+    db[model.name] = model;
+  });
+
+Object.keys(db).forEach(function(modelName) {
+  if (db[modelName].associate) {
+    db[modelName].associate(db);
   }
-};
-
-app.get('/trivia/:question', function(request, response){
-  var questionKey = request.params.question;
-  var triviaQuestion = questions[questionKey];
-  response.render('trivia', {'question': triviaQuestion.question, 'answer': triviaQuestion.answer});
 });
 
-app.listen(3000, function () {
- console.log('Example app listening on port 3000!');
-});
+db.sequelize = sequelize;
+db.Sequelize = Sequelize;
+
+module.exports = db;

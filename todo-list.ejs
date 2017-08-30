@@ -1,0 +1,37 @@
+<h2><%= todoList.get('name') %></h2>
+
+<ul>
+  <% for(index in todo){ %>
+    <li>
+      <% if(!todos[index].isComplete){ %>
+        <form
+          action="/todo-list/<%= todoList.get('id') %>/todo/<%= todos[index].get('id') %>/complete"
+          method="post"
+        >
+          <%= todos[index].name %>
+          <input type='submit' value='done' />
+        </form
+      <% }else{ %>
+        <form
+       action="/todo-list/<%= todoList.get('id') %>/todo/<%= todos[index].get('id') %>/delete"
+       method="post"
+     >
+        <span class='complete' >
+          <%= todos[index].name %>
+        </span>
+        <input type='submit' value='remove' />
+        </form>
+      <% } %>
+    </li>
+  <% } %>
+</ul>
+<div>
+  <h3>New Todo</h3>
+  <form
+    action="/todo-list/<%= todoList.get('id') %>/todo/new"
+    method="post"
+  >
+    <input type='text' name='name' />
+    <input type='submit' value='Add Todo' />
+  </form>
+</div>
